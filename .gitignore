@@ -19,3 +19,5 @@ cover
 .testrepository
 .project
 .pydevproject
+cscope*
+mktags*
