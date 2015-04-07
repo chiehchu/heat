@@ -34,7 +34,7 @@ except ImportError:
     kubernetes = None
 
 
-class KubernetesReplicationController(resource.Resource):
+class KubernetesService(resource.Resource):
 
     PROPERTIES = (
         KUBERNETES_ENDPOINT, DEFINITION_LOCATION, HOSTNAME, USER, MEMORY, PORT_SPECS,
@@ -66,7 +66,7 @@ class KubernetesReplicationController(resource.Resource):
         ),
         DEFINITION_LOCATION: properties.Schema(
             properties.Schema.STRING,
-            _('Location where the defintion of ReplicationController is located.'),
+            _('Location where the defintion of Service is located.'),
             default=''
         ),
         HOSTNAME: properties.Schema(
@@ -155,7 +155,7 @@ class KubernetesReplicationController(resource.Resource):
         ),
         NAMESPACE: properties.Schema(
             properties.Schema.STRING,
-            _('Namespace of current ReplicationController, default is default.'),
+            _('Namespace of current Service, default is default.'),
             default='default'
         ),
     }
@@ -192,7 +192,7 @@ class KubernetesReplicationController(resource.Resource):
 
     def __init__(self, name, definition, stack):
         self.labels = {}
-        super(KubernetesReplicationController, self).__init__(name, definition, stack)
+        super(KubernetesService, self).__init__(name, definition, stack)
 
     def get_client(self):
         client = None
@@ -273,34 +273,24 @@ class KubernetesReplicationController(resource.Resource):
             file_obj.close()
             return content
 
-    def _is_pod_running(self, pod):
-        return pod.Status.Phase == "Running"
-
     def handle_create(self):
+        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
         client = self.get_client()
         content = self._read_definition(self.properties[self.DEFINITION_LOCATION])
-        result = client.CreateReplicationController(content, self.properties[self.NAMESPACE])
-        rc_name = result.Name
+        result = client.CreateService(content, self.properties[self.NAMESPACE])
+        service_name = result.Name
         self.labels = result.Labels
-        self.resource_id_set(rc_name)
-        return rc_name
+        self.resource_id_set(service_name)
+        return service_name
 
-    def check_create_complete(self, rc_name):
+    def check_create_complete(self, service_name):
+        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
         client = self.get_client()
-        #get the replicationcontroller by given name
-        rc = client.GetReplicationController(name=rc_name, namespace=self.properties[self.NAMESPACE])
-        #check whether the current state equals with desired state
-        if rc.DesiredState > rc.CurrentState:
-            return False
-        #get all pods which are labeled by the given rc first
-        pod_list = client.GetPods(namespace=self.properties[self.NAMESPACE], selector=rc.Labels.get('name'))
-        if len(pod_list.Items) < rc.DesiredState:
-            return False
-        for pod in pod_list.Items:
-            if not self._is_pod_running(pod):
-                return False
+        service = client.GetService(name=service_name, namespace=self.properties[self.NAMESPACE])
         # The boolean is specified here
-        return True
+        if service.PortalIP and service.UID:
+            return True
+        return False
 
     #def handle_delete(self):
         #if self.resource_id is None:
@@ -313,11 +303,11 @@ class KubernetesReplicationController(resource.Resource):
                 #raise
         #return self.resource_id
 
-    #def check_delete_complete(self, rc_name):
-        #if rc_name is None:
+    #def check_delete_complete(self, service_name):
+        #if service_name is None:
             #return True
         #try:
-            #status = self._get_container_status(rc_name)
+            #status = self._get_container_status(service_name)
         #except kubernetes.errors.APIError as ex:
             #if ex.response.status_code == 404:
                 #return True
@@ -331,8 +321,8 @@ class KubernetesReplicationController(resource.Resource):
         #client.stop(self.resource_id)
         #return self.resource_id
 
-    #def check_suspend_complete(self, rc_name):
-        #status = self._get_container_status(rc_name)
+    #def check_suspend_complete(self, service_name):
+        #status = self._get_container_status(service_name)
         #return (not status['Running'])
 
     #def handle_resume(self):
@@ -342,16 +332,15 @@ class KubernetesReplicationController(resource.Resource):
         #client.start(self.resource_id)
         #return self.resource_id
 
-    #def check_resume_complete(self, rc_name):
-        #status = self._get_container_status(rc_name)
+    #def check_resume_complete(self, service_name):
+        #status = self._get_container_status(service_name)
         #return status['Running']
 
 
 def resource_mapping():
     return {
-        'GoogleInc::Kubernetes::ReplicationController': KubernetesReplicationController,
+        'GoogleInc::Kubernetes::Service': KubernetesService,
     }
-
 
 def available_resource_mapping():
     if KUBERNETES_INSTALLED:
