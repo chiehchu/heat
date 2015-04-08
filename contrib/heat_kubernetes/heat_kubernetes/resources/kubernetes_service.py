@@ -29,6 +29,7 @@ KUBERNETES_INSTALLED = False
 # satisfied
 try:
     import kubernetes
+    from kubernetes import KubernetesError
     KUBERNETES_INSTALLED = True
 except ImportError:
     kubernetes = None
@@ -274,7 +275,6 @@ class KubernetesService(resource.Resource):
             return content
 
     def handle_create(self):
-        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
         client = self.get_client()
         content = self._read_definition(self.properties[self.DEFINITION_LOCATION])
         result = client.CreateService(content, self.properties[self.NAMESPACE])
@@ -284,35 +284,29 @@ class KubernetesService(resource.Resource):
         return service_name
 
     def check_create_complete(self, service_name):
-        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
         client = self.get_client()
         service = client.GetService(name=service_name, namespace=self.properties[self.NAMESPACE])
         # The boolean is specified here
-        if service.PortalIP and service.UID:
+        if service and service.PortalIP and service.UID:
             return True
         return False
 
-    #def handle_delete(self):
-        #if self.resource_id is None:
-            #return
-        #client = self.get_client()
-        #try:
-            #client.kill(self.resource_id)
-        #except kubernetes.errors.APIError as ex:
-            #if ex.response.status_code != 404:
-                #raise
-        #return self.resource_id
+    def handle_delete(self):
+        if self.resource_id is None:
+            return
+        client = self.get_client()
+        client.DeleteService(name=self.resource_id, namespace=self.properties[self.NAMESPACE])
+        return self.resource_id
 
-    #def check_delete_complete(self, service_name):
-        #if service_name is None:
-            #return True
-        #try:
-            #status = self._get_container_status(service_name)
-        #except kubernetes.errors.APIError as ex:
-            #if ex.response.status_code == 404:
-                #return True
-            #raise
-        #return (not status['Running'])
+    def check_delete_complete(self, service_name):
+        if service_name is None:
+            return True
+        client = self.get_client()
+        try:
+            client.GetService(name=service_name, namespace=self.properties[self.NAMESPACE])
+        except KubernetesError:
+            raise
+        return True
 
     #def handle_suspend(self):
         #if not self.resource_id:

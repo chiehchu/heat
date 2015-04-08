@@ -29,6 +29,7 @@ KUBERNETES_INSTALLED = False
 # satisfied
 try:
     import kubernetes
+    from kubernetes import KubernetesError
     KUBERNETES_INSTALLED = True
 except ImportError:
     kubernetes = None
@@ -302,27 +303,39 @@ class KubernetesReplicationController(resource.Resource):
         # The boolean is specified here
         return True
 
-    #def handle_delete(self):
-        #if self.resource_id is None:
-            #return
-        #client = self.get_client()
-        #try:
-            #client.kill(self.resource_id)
-        #except kubernetes.errors.APIError as ex:
-            #if ex.response.status_code != 404:
-                #raise
-        #return self.resource_id
+    def handle_delete(self):
+        if self.resource_id is None:
+            return
+        client = self.get_client()
+        #resize replicationcontroller to 0 first
+        try:
+            client.ResizeReplicationController(name=self.resource_id, replicas=0,
+                                               namespace=self.properties[self.NAMESPACE])
+        except KubernetesError, e:
+            LOG.warn(_("handle_delete: ResizeReplicationController got error with message <%s>"
+                       "will retry again later" % e.message))
+        return self.resource_id
 
-    #def check_delete_complete(self, rc_name):
-        #if rc_name is None:
-            #return True
-        #try:
-            #status = self._get_container_status(rc_name)
-        #except kubernetes.errors.APIError as ex:
-            #if ex.response.status_code == 404:
-                #return True
-            #raise
-        #return (not status['Running'])
+    def check_delete_complete(self, rc_name):
+        if rc_name is None:
+            return True
+        #check if the current rc still has any pod
+        client = self.get_client()
+        rc = client.GetReplicationController(name=rc_name, namespace=self.properties[self.NAMESPACE])
+        if not rc:
+            return True
+        pod_list = client.GetPods(namespace=self.properties[self.NAMESPACE], selector=rc.Labels.get('name'))
+        if pod_list.Items and len(pod_list.Items):
+            try:
+                client.ResizeReplicationController(name=rc_name, replicas=0,
+                                                   namespace=self.properties[self.NAMESPACE])
+            except KubernetesError, e:
+                LOG.warn(_("check_delete_complete:ResizeReplicationController got error with message <%s>"
+                           "will retry again later" % e.message))
+            return False
+        #delete rc if no pods anymore
+        client.DeleteReplicationController(name=rc_name, namespace=self.properties[self.NAMESPACE])
+        return True
 
     #def handle_suspend(self):
         #if not self.resource_id:
