@@ -38,25 +38,22 @@ except ImportError:
 class KubernetesService(resource.Resource):
 
     PROPERTIES = (
-        KUBERNETES_ENDPOINT, DEFINITION_LOCATION, HOSTNAME, USER, MEMORY, PORT_SPECS,
-        PRIVILEGED, TTY, OPEN_STDIN, STDIN_ONCE, ENV, CMD, DNS,
-        IMAGE, VOLUMES, VOLUMES_FROM, PORT_BINDINGS, LINKS, NAME, APIVERSION, NAMESPACE,
+        KUBERNETES_ENDPOINT, DEFINITION_LOCATION,
+        NAME, APIVERSION, NAMESPACE,
     ) = (
-        'kubernetes_endpoint', 'definition_location', 'hostname', 'user', 'memory', 'port_specs',
-        'privileged', 'tty', 'open_stdin', 'stdin_once', 'env', 'cmd', 'dns',
-        'image', 'volumes', 'volumes_from', 'port_bindings', 'links', 'name',
-        'apiversion', 'namespace',
+        'kubernetes_endpoint', 'definition_location',
+        'name', 'apiversion', 'namespace',
     )
 
-    ATTRIBUTES = (
-        INFO, NETWORK_INFO, NETWORK_IP, NETWORK_GATEWAY,
-        NETWORK_TCP_PORTS, NETWORK_UDP_PORTS, LOGS, LOGS_HEAD,
-        LOGS_TAIL,
-    ) = (
-        'info', 'network_info', 'network_ip', 'network_gateway',
-        'network_tcp_ports', 'network_udp_ports', 'logs', 'logs_head',
-        'logs_tail',
-    )
+    #ATTRIBUTES = (
+        #INFO, NETWORK_INFO, NETWORK_IP, NETWORK_GATEWAY,
+        #NETWORK_TCP_PORTS, NETWORK_UDP_PORTS, LOGS, LOGS_HEAD,
+        #LOGS_TAIL,
+    #) = (
+        #'info', 'network_info', 'network_ip', 'network_gateway',
+        #'network_tcp_ports', 'network_udp_ports', 'logs', 'logs_head',
+        #'logs_tail',
+    #)
 
     properties_schema = {
         KUBERNETES_ENDPOINT: properties.Schema(
@@ -70,84 +67,9 @@ class KubernetesService(resource.Resource):
             _('Location where the defintion of Service is located.'),
             default=''
         ),
-        HOSTNAME: properties.Schema(
-            properties.Schema.STRING,
-            _('Hostname of the container.'),
-            default=''
-        ),
-        USER: properties.Schema(
-            properties.Schema.STRING,
-            _('Username or UID.'),
-            default=''
-        ),
-        MEMORY: properties.Schema(
-            properties.Schema.INTEGER,
-            _('Memory limit (Bytes).'),
-            default=0
-        ),
-        PORT_SPECS: properties.Schema(
-            properties.Schema.LIST,
-            _('TCP/UDP ports mapping.'),
-            default=None
-        ),
-        PORT_BINDINGS: properties.Schema(
-            properties.Schema.MAP,
-            _('TCP/UDP ports bindings.'),
-        ),
-        LINKS: properties.Schema(
-            properties.Schema.MAP,
-            _('Links to other containers.'),
-        ),
         NAME: properties.Schema(
             properties.Schema.STRING,
             _('Name of the container.'),
-        ),
-        PRIVILEGED: properties.Schema(
-            properties.Schema.BOOLEAN,
-            _('Enable extended privileges.'),
-            default=False
-        ),
-        TTY: properties.Schema(
-            properties.Schema.BOOLEAN,
-            _('Allocate a pseudo-tty.'),
-            default=False
-        ),
-        OPEN_STDIN: properties.Schema(
-            properties.Schema.BOOLEAN,
-            _('Open stdin.'),
-            default=False
-        ),
-        STDIN_ONCE: properties.Schema(
-            properties.Schema.BOOLEAN,
-            _('If true, close stdin after the 1 attached client disconnects.'),
-            default=False
-        ),
-        ENV: properties.Schema(
-            properties.Schema.LIST,
-            _('Set environment variables.'),
-        ),
-        CMD: properties.Schema(
-            properties.Schema.LIST,
-            _('Command to run after spawning the container.'),
-            default=[]
-        ),
-        DNS: properties.Schema(
-            properties.Schema.LIST,
-            _('Set custom dns servers.'),
-        ),
-        IMAGE: properties.Schema(
-            properties.Schema.STRING,
-            _('Image name.')
-        ),
-        VOLUMES: properties.Schema(
-            properties.Schema.MAP,
-            _('Create a bind mount.'),
-            default={}
-        ),
-        VOLUMES_FROM: properties.Schema(
-            properties.Schema.LIST,
-            _('Mount all specified volumes.'),
-            default=''
         ),
         APIVERSION: properties.Schema(
             properties.Schema.STRING,
@@ -161,35 +83,17 @@ class KubernetesService(resource.Resource):
         ),
     }
 
-    attributes_schema = {
-        INFO: attributes.Schema(
-            _('Container info.')
-        ),
-        NETWORK_INFO: attributes.Schema(
-            _('Container network info.')
-        ),
-        NETWORK_IP: attributes.Schema(
-            _('Container ip address.')
-        ),
-        NETWORK_GATEWAY: attributes.Schema(
-            _('Container ip gateway.')
-        ),
-        NETWORK_TCP_PORTS: attributes.Schema(
-            _('Container TCP ports.')
-        ),
-        NETWORK_UDP_PORTS: attributes.Schema(
-            _('Container UDP ports.')
-        ),
-        LOGS: attributes.Schema(
-            _('Container logs.')
-        ),
-        LOGS_HEAD: attributes.Schema(
-            _('Container first logs line.')
-        ),
-        LOGS_TAIL: attributes.Schema(
-            _('Container last logs line.')
-        ),
-    }
+    #attributes_schema = {
+        #LOGS: attributes.Schema(
+            #_('Container logs.')
+        #),
+        #LOGS_HEAD: attributes.Schema(
+            #_('Container first logs line.')
+        #),
+        #LOGS_TAIL: attributes.Schema(
+            #_('Container last logs line.')
+        #),
+    #}
 
     def __init__(self, name, definition, stack):
         self.labels = {}
@@ -204,54 +108,9 @@ class KubernetesService(resource.Resource):
             client = kubernetes.Api(base_url=base_url)
         return client
 
-    #def _parse_networkinfo_ports(self, networkinfo):
-        #tcp = []
-        #udp = []
-        #for port, info in six.iteritems(networkinfo['Ports']):
-            #p = port.split('/')
-            #if not info or len(p) != 2 or 'HostPort' not in info[0]:
-                #continue
-            #port = info[0]['HostPort']
-            #if p[1] == 'tcp':
-                #tcp.append(port)
-            #elif p[1] == 'udp':
-                #udp.append(port)
-        #return (','.join(tcp), ','.join(udp))
-
-    #def _container_networkinfo(self, client, resource_id):
-        #info = client.inspect_container(self.resource_id)
-        #networkinfo = info['NetworkSettings']
-        #ports = self._parse_networkinfo_ports(networkinfo)
-        #networkinfo['TcpPorts'] = ports[0]
-        #networkinfo['UdpPorts'] = ports[1]
-        #return networkinfo
-
     def _resolve_attribute(self, name):
         if not self.resource_id:
             return
-        #if name == 'info':
-            #client = self.get_client()
-            #return client.inspect_container(self.resource_id)
-        #if name == 'network_info':
-            #client = self.get_client()
-            #networkinfo = self._container_networkinfo(client, self.resource_id)
-            #return networkinfo
-        #if name == 'network_ip':
-            #client = self.get_client()
-            #networkinfo = self._container_networkinfo(client, self.resource_id)
-            #return networkinfo['IPAddress']
-        #if name == 'network_gateway':
-            #client = self.get_client()
-            #networkinfo = self._container_networkinfo(client, self.resource_id)
-            #return networkinfo['Gateway']
-        #if name == 'network_tcp_ports':
-            #client = self.get_client()
-            #networkinfo = self._container_networkinfo(client, self.resource_id)
-            #return networkinfo['TcpPorts']
-        #if name == 'network_udp_ports':
-            #client = self.get_client()
-            #networkinfo = self._container_networkinfo(client, self.resource_id)
-            #return networkinfo['UdpPorts']
         #if name == 'logs':
             #client = self.get_client()
             #logs = client.logs(self.resource_id)
@@ -307,29 +166,6 @@ class KubernetesService(resource.Resource):
         except KubernetesError:
             raise
         return True
-
-    #def handle_suspend(self):
-        #if not self.resource_id:
-            #return
-        #client = self.get_client()
-        #client.stop(self.resource_id)
-        #return self.resource_id
-
-    #def check_suspend_complete(self, service_name):
-        #status = self._get_container_status(service_name)
-        #return (not status['Running'])
-
-    #def handle_resume(self):
-        #if not self.resource_id:
-            #return
-        #client = self.get_client()
-        #client.start(self.resource_id)
-        #return self.resource_id
-
-    #def check_resume_complete(self, service_name):
-        #status = self._get_container_status(service_name)
-        #return status['Running']
-
 
 def resource_mapping():
     return {
